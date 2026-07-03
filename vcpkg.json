@@ -1,0 +1,8 @@
+{
+  "name": "leegvault",
+  "version": "0.1.0",
+  "dependencies": [
+    "libsodium",
+    "catch2"
+  ]
+}
