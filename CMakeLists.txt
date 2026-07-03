@@ -26,6 +26,7 @@ include(Catch)
 
 add_executable(lgv_tests
   tests/test_smoke.cpp
+  tests/test_secure_buffer.cpp
 )
 target_link_libraries(lgv_tests PRIVATE lgv_core Catch2::Catch2WithMain unofficial-sodium::sodium)
 catch_discover_tests(lgv_tests)
