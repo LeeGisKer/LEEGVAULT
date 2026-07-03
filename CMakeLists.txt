@@ -13,6 +13,7 @@ add_library(lgv_core STATIC
   src/core/sodium_init.cpp
   src/core/kdf.cpp
   src/core/commit.cpp
+  src/core/header.cpp
 )
 target_include_directories(lgv_core PUBLIC src)
 target_link_libraries(lgv_core PUBLIC unofficial-sodium::sodium)
@@ -31,6 +32,7 @@ add_executable(lgv_tests
   tests/test_secure_buffer.cpp
   tests/test_kdf.cpp
   tests/test_commit.cpp
+  tests/test_header.cpp
 )
 target_link_libraries(lgv_tests PRIVATE lgv_core Catch2::Catch2WithMain unofficial-sodium::sodium)
 catch_discover_tests(lgv_tests)
