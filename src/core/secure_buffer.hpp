@@ -6,6 +6,7 @@
 namespace lgv {
 // Owns a sodium_malloc() region: guard pages + canary + locked + zeroized on free.
 // Move-only; secrets never copied. sodium_free zeroizes before releasing.
+// Precondition: lgv::ensure_sodium() must have run before constructing (sodium_malloc needs libsodium initialized).
 class SecureBuffer {
 public:
     SecureBuffer() noexcept = default;
