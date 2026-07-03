@@ -1,5 +1,6 @@
 /build/
 /out/
+/.superpowers/
 vcpkg_installed/
 CMakeUserPresets.json
 *.lgv
