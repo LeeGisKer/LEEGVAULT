@@ -35,6 +35,10 @@ if (MSVC)
   target_compile_options(lgv_storage PRIVATE /W4 /permissive-)
 endif()
 
+# Deterministic KAT vector generator (tool; emits the golden vault hex).
+add_executable(emit_vectors tools/emit_vectors.cpp)
+target_link_libraries(emit_vectors PRIVATE lgv_core unofficial-sodium::sodium)
+
 enable_testing()
 include(CTest)
 include(Catch)
@@ -49,6 +53,7 @@ add_executable(lgv_tests
   tests/test_cbor_model.cpp
   tests/test_vault.cpp
   tests/test_vault_file.cpp
+  tests/test_vectors.cpp
 )
 target_link_libraries(lgv_tests PRIVATE lgv_core lgv_storage Catch2::Catch2WithMain unofficial-sodium::sodium)
 catch_discover_tests(lgv_tests)

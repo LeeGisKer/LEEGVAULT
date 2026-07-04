@@ -1,0 +1,9 @@
+{
+  "description": "LEEGVAULT LGV1 M1 known-answer vector. Deterministic seal_vault output.",
+  "params":   { "m_kib": 8192, "t": 3, "p": 1 },
+  "password": "leegvault-kat-password",
+  "salt_hex":  "000102030405060708090a0b0c0d0e0f",
+  "nonce_hex": "404142434445464748494a4b4c4d4e4f5051525354555657",
+  "entry":    { "id": "kat-1", "name": "Example", "secret_utf8": "s3cr3t" },
+  "vault_hex": "4c475631010001002000000300000001000102030405060708090a0b0c0d0e0f01404142434445464748494a4b4c4d4e4f50515253545556570081d0a81671deea496cca27163cabe5564be298371f19b7c1764a7bf2ac7abc1447efcd7849fd204f9d2010bc755f99634bc6d7a1f15bb4ce2f873bffa5a6d28e94dd6de491957d833e2b50ed7ef388cf435468744d146ca44efeccd5aebf3b4ccd40"
+}
