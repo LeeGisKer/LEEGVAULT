@@ -31,3 +31,16 @@ TEST_CASE("aead: round-trip, tamper, wrong aad all fail closed", "[aead]") {
     lgv::SecureBuffer key2(32); std::memset(key2.data(), 0x00, 32);
     REQUIRE_THROWS_AS(lgv::aead_decrypt(key2, nonce, ct, aad), lgv::AuthError);
 }
+
+TEST_CASE("aead: too-short ciphertext fails closed", "[aead]") {
+    lgv::ensure_sodium();
+    lgv::SecureBuffer key(32); std::memset(key.data(), 0x77, 32);
+    std::vector<unsigned char> nonce(24, 0x88);
+    std::vector<unsigned char> aad(90, 0x99);
+    std::vector<unsigned char> too_short(8, 0x00);   // fewer than 16 tag bytes
+    REQUIRE_THROWS_AS(
+        lgv::aead_decrypt(key, nonce,
+            std::span<const unsigned char>(too_short.data(), too_short.size()),
+            std::span<const unsigned char>(aad.data(), aad.size())),
+        lgv::AuthError);
+}

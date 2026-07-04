@@ -81,3 +81,18 @@ TEST_CASE("create_vault uses fresh randomness each call", "[vault]") {
     REQUIRE_NOTHROW(lgv::open_vault(km, a));
     REQUIRE_NOTHROW(lgv::open_vault(km, b));
 }
+
+TEST_CASE("tampered KDF params fail closed as AuthError", "[vault]") {
+    lgv::ensure_sodium();
+    std::string pw = "master-pass";
+    std::array<unsigned char, 16> salt{}; std::memset(salt.data(), 0x11, 16);
+    std::array<unsigned char, 24> nonce{}; std::memset(nonce.data(), 0x22, 24);
+    lgv::VaultKeyMaterial km{ as_bytes(pw), std::nullopt };
+    auto bytes = lgv::seal_vault(km, fast(), salt, nonce, one_entry());
+
+    auto tm = bytes; tm[7] = tm[8] = tm[9] = tm[10] = 0x00;   // m_kib -> 0 (below MEMLIMIT_MIN)
+    REQUIRE_THROWS_AS(lgv::open_vault(km, tm), lgv::AuthError);
+
+    auto tt = bytes; tt[11] = tt[12] = tt[13] = tt[14] = 0x00; // t -> 0 (below OPSLIMIT_MIN)
+    REQUIRE_THROWS_AS(lgv::open_vault(km, tt), lgv::AuthError);
+}

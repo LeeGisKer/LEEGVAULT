@@ -70,6 +70,14 @@ VaultBody open_vault(const VaultKeyMaterial& km, std::span<const unsigned char> 
     if ((h.keyfile_flag == 1) != km.keyfile.has_value()) throw AuthError(); // keyfile presence must match
 
     KdfParams params{ h.m_kib, h.t, h.p };
+    // Tampered/corrupt KDF params must fail closed with the SAME generic AuthError, not leak a
+    // distinct error type out of the KDF. A legitimate seal can never write params outside
+    // libsodium's accepted range, so out-of-range == corruption/tampering. (In-range params that
+    // still fail the KDF stay a runtime_error — that is a genuine low-memory environment, not tamper.)
+    const std::size_t memlimit = static_cast<std::size_t>(params.m_kib) * 1024u;
+    if (memlimit < crypto_pwhash_MEMLIMIT_MIN || memlimit > crypto_pwhash_MEMLIMIT_MAX ||
+        params.t < crypto_pwhash_OPSLIMIT_MIN || params.t > crypto_pwhash_OPSLIMIT_MAX)
+        throw AuthError();
     SecureBuffer mk = derive_master_key(km.password, km.keyfile,
                                         std::span<const unsigned char>(h.salt.data(), 16), params);
     Subkeys sk = derive_subkeys(mk);
