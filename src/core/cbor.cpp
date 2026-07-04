@@ -64,7 +64,7 @@ std::uint64_t CborReader::read_len(unsigned expected_major) {
 std::string CborReader::read_text() {
     auto [major, len] = read_head();
     if (major != 3) throw FormatError("cbor: expected text string");
-    if (pos_ + len > in_.size()) throw FormatError("cbor: text overrun");
+    if (len > in_.size() - pos_) throw FormatError("cbor: text overrun");
     std::string s(reinterpret_cast<const char*>(in_.data() + pos_), static_cast<std::size_t>(len));
     pos_ += static_cast<std::size_t>(len);
     return s;
@@ -73,7 +73,7 @@ std::string CborReader::read_text() {
 SecureBuffer CborReader::read_bytes() {
     auto [major, len] = read_head();
     if (major != 2) throw FormatError("cbor: expected byte string");
-    if (pos_ + len > in_.size()) throw FormatError("cbor: bytes overrun");
+    if (len > in_.size() - pos_) throw FormatError("cbor: bytes overrun");
     SecureBuffer b(static_cast<std::size_t>(len));
     if (len > 0) std::memcpy(b.data(), in_.data() + pos_, static_cast<std::size_t>(len));
     pos_ += static_cast<std::size_t>(len);

@@ -41,6 +41,7 @@ VaultBody parse_body(std::span<const unsigned char> plaintext) {
 
     if (r.read_text() != "entries") throw FormatError("body: expected 'entries'");
     const std::uint64_t n = r.read_array();
+    if (n > plaintext.size()) throw FormatError("body: entry count too large");
 
     VaultBody body;
     body.entries.reserve(static_cast<std::size_t>(n));
@@ -55,6 +56,7 @@ VaultBody parse_body(std::span<const unsigned char> plaintext) {
         e.secret = r.read_bytes();
         body.entries.push_back(std::move(e));
     }
+    if (!r.done()) throw FormatError("body: trailing bytes");
     return body;
 }
 }
