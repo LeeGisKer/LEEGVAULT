@@ -27,6 +27,14 @@ if (MSVC)
   target_compile_options(lgv_core PRIVATE /W4 /permissive-)
 endif()
 
+# Storage library (atomic vault file save/load — the only file I/O in M1).
+add_library(lgv_storage STATIC src/storage/vault_file.cpp)
+target_include_directories(lgv_storage PUBLIC src)
+target_link_libraries(lgv_storage PUBLIC lgv_core)
+if (MSVC)
+  target_compile_options(lgv_storage PRIVATE /W4 /permissive-)
+endif()
+
 enable_testing()
 include(CTest)
 include(Catch)
@@ -40,6 +48,7 @@ add_executable(lgv_tests
   tests/test_aead.cpp
   tests/test_cbor_model.cpp
   tests/test_vault.cpp
+  tests/test_vault_file.cpp
 )
-target_link_libraries(lgv_tests PRIVATE lgv_core Catch2::Catch2WithMain unofficial-sodium::sodium)
+target_link_libraries(lgv_tests PRIVATE lgv_core lgv_storage Catch2::Catch2WithMain unofficial-sodium::sodium)
 catch_discover_tests(lgv_tests)
