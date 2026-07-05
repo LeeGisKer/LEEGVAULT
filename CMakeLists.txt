@@ -39,6 +39,13 @@ endif()
 add_executable(emit_vectors tools/emit_vectors.cpp)
 target_link_libraries(emit_vectors PRIVATE lgv_core unofficial-sodium::sodium)
 
+# Interactive CLI app (M2 seed) — the double-click runnable vault.
+add_executable(leegvault src/cli/main.cpp)
+target_link_libraries(leegvault PRIVATE lgv_core lgv_storage unofficial-sodium::sodium)
+if (MSVC)
+  target_compile_options(leegvault PRIVATE /W4 /permissive-)
+endif()
+
 enable_testing()
 include(CTest)
 include(Catch)
