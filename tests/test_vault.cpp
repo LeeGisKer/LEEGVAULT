@@ -95,4 +95,36 @@ TEST_CASE("tampered KDF params fail closed as AuthError", "[vault]") {
 
     auto tt = bytes; tt[11] = tt[12] = tt[13] = tt[14] = 0x00; // t -> 0 (below OPSLIMIT_MIN)
     REQUIRE_THROWS_AS(lgv::open_vault(km, tt), lgv::AuthError);
+
+    // Above-ceiling params must fail closed BEFORE the KDF runs: if this
+    // regresses, these cases hang for billions of passes / OOM instead of
+    // throwing, and a tampered header becomes a pre-auth DoS + error oracle.
+    auto hm = bytes; hm[7] = hm[8] = hm[9] = hm[10] = 0xFF;   // m_kib -> ~4 TiB (above policy ceiling)
+    REQUIRE_THROWS_AS(lgv::open_vault(km, hm), lgv::AuthError);
+
+    auto ht = bytes; ht[11] = ht[12] = ht[13] = ht[14] = 0xFF; // t -> ~4e9 passes (above policy ceiling)
+    REQUIRE_THROWS_AS(lgv::open_vault(km, ht), lgv::AuthError);
+
+    auto hp = bytes; hp[15] = 0x02;                            // p -> 2 (policy fixes p=1)
+    REQUIRE_THROWS_AS(lgv::open_vault(km, hp), lgv::AuthError);
+}
+
+TEST_CASE("sealing with out-of-policy KDF params is refused", "[vault]") {
+    lgv::ensure_sodium();
+    std::string pw = "master-pass";
+    std::array<unsigned char, 16> salt{}; std::memset(salt.data(), 0x11, 16);
+    std::array<unsigned char, 24> nonce{}; std::memset(nonce.data(), 0x22, 24);
+    lgv::VaultKeyMaterial km{ as_bytes(pw), std::nullopt };
+
+    lgv::KdfParams too_big_m{ lgv::kMaxKdfMKib + 1u, 3u, 1u };
+    REQUIRE_THROWS_AS(lgv::seal_vault(km, too_big_m, salt, nonce, one_entry()),
+                      std::invalid_argument);
+
+    lgv::KdfParams too_big_t{ 8192u, lgv::kMaxKdfT + 1u, 1u };
+    REQUIRE_THROWS_AS(lgv::seal_vault(km, too_big_t, salt, nonce, one_entry()),
+                      std::invalid_argument);
+
+    lgv::KdfParams bad_p{ 8192u, 3u, 2u };
+    REQUIRE_THROWS_AS(lgv::seal_vault(km, bad_p, salt, nonce, one_entry()),
+                      std::invalid_argument);
 }

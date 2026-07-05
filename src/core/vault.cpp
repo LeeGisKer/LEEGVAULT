@@ -5,6 +5,7 @@
 #include "core/header.hpp"
 #include "core/sodium_init.hpp"
 #include <sodium.h>
+#include <cstdint>
 #include <cstring>
 #include <stdexcept>
 
@@ -14,6 +15,13 @@ Lgv1Header make_header(const KdfParams& params, std::span<const unsigned char> s
                        std::span<const unsigned char> nonce, bool has_keyfile) {
     if (salt.size() != 16) throw std::invalid_argument("salt must be 16 bytes");
     if (nonce.size() != 24) throw std::invalid_argument("nonce must be 24 bytes");
+    // Seal-side mirror of the open-side policy check: never write params that
+    // open_vault would reject, or the vault becomes unopenable. p is fixed to 1
+    // (libsodium's crypto_pwhash has no parallelism input; PRD A5).
+    if (static_cast<std::uint64_t>(params.m_kib) * 1024u < crypto_pwhash_MEMLIMIT_MIN ||
+        params.m_kib > kMaxKdfMKib || params.t < crypto_pwhash_OPSLIMIT_MIN ||
+        params.t > kMaxKdfT || params.p != 1)
+        throw std::invalid_argument("kdf params outside accepted policy range");
     Lgv1Header h{};
     h.format_version = kFormatVersion;
     h.kdf_id = 1;                 // Argon2id
@@ -71,12 +79,16 @@ VaultBody open_vault(const VaultKeyMaterial& km, std::span<const unsigned char> 
 
     KdfParams params{ h.m_kib, h.t, h.p };
     // Tampered/corrupt KDF params must fail closed with the SAME generic AuthError, not leak a
-    // distinct error type out of the KDF. A legitimate seal can never write params outside
-    // libsodium's accepted range, so out-of-range == corruption/tampering. (In-range params that
-    // still fail the KDF stay a runtime_error — that is a genuine low-memory environment, not tamper.)
-    const std::size_t memlimit = static_cast<std::size_t>(params.m_kib) * 1024u;
-    if (memlimit < crypto_pwhash_MEMLIMIT_MIN || memlimit > crypto_pwhash_MEMLIMIT_MAX ||
-        params.t < crypto_pwhash_OPSLIMIT_MIN || params.t > crypto_pwhash_OPSLIMIT_MAX)
+    // distinct error type out of the KDF. A legitimate seal never writes params outside
+    // [libsodium minima, lgv policy ceiling] or p != 1, so out-of-range == corruption/tampering.
+    // The ceiling must be a real bound: OPSLIMIT_MAX equals the u32 field maximum and
+    // MEMLIMIT_MAX sits just above the largest scaled u32 memlimit, so checking against them
+    // is dead code and lets a tampered header force a multi-terabyte allocation or ~4e9
+    // Argon2 passes before any authentication happens. Gating p here also skips a full
+    // (expensive) KDF run for a tamper the commit tag would only catch afterwards.
+    const std::uint64_t memlimit = static_cast<std::uint64_t>(params.m_kib) * 1024u;
+    if (memlimit < crypto_pwhash_MEMLIMIT_MIN || params.m_kib > kMaxKdfMKib ||
+        params.t < crypto_pwhash_OPSLIMIT_MIN || params.t > kMaxKdfT || params.p != 1)
         throw AuthError();
     SecureBuffer mk = derive_master_key(km.password, km.keyfile,
                                         std::span<const unsigned char>(h.salt.data(), 16), params);

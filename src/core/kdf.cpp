@@ -1,7 +1,9 @@
 #include "core/kdf.hpp"
 #include "core/sodium_init.hpp"
 #include <sodium.h>
+#include <cstdint>
 #include <cstring>
+#include <limits>
 #include <stdexcept>
 
 namespace lgv {
@@ -33,13 +35,19 @@ SecureBuffer derive_master_key(std::span<const unsigned char> password,
         composite = std::move(hp);
     }
 
+    // Compute memlimit in 64-bit so a large m_kib cannot wrap on a 32-bit
+    // size_t and silently run Argon2 with a tiny memory cost.
+    const std::uint64_t memlimit = static_cast<std::uint64_t>(params.m_kib) * 1024u;
+    if (memlimit > std::numeric_limits<std::size_t>::max())
+        throw std::runtime_error("argon2id memlimit exceeds platform size_t");
+
     SecureBuffer mk(crypto_kdf_KEYBYTES);                 // 32
     const int rc = crypto_pwhash(
         mk.data(), mk.size(),
         reinterpret_cast<const char*>(composite.data()), composite.size(),
         salt.data(),
         static_cast<unsigned long long>(params.t),
-        static_cast<std::size_t>(params.m_kib) * 1024u,
+        static_cast<std::size_t>(memlimit),
         crypto_pwhash_ALG_ARGON2ID13);
     if (rc != 0) throw std::runtime_error("argon2id failed (out of memory?)");
     return mk;

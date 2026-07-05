@@ -22,6 +22,10 @@ void flush_to_disk(std::FILE* f) {
 } // namespace
 
 void save_vault_atomic(const fs::path& path, std::span<const unsigned char> bytes) {
+    // Mirror of the load-side cap: never persist a vault that load_vault
+    // would refuse to read back, or the caller has locked themselves out.
+    if (bytes.size() > kMaxVaultFileBytes)
+        throw FormatError("vault exceeds maximum size");
     fs::path tmp = path; tmp += ".tmp";
     {
         std::FILE* f = nullptr;
@@ -62,7 +66,13 @@ std::vector<unsigned char> load_vault(const fs::path& path) {
     std::vector<unsigned char> out;
     unsigned char buf[4096];
     std::size_t n;
-    while ((n = std::fread(buf, 1, sizeof buf, f)) > 0) out.insert(out.end(), buf, buf + n);
+    while ((n = std::fread(buf, 1, sizeof buf, f)) > 0) {
+        if (out.size() + n > kMaxVaultFileBytes) {
+            std::fclose(f);
+            throw FormatError("vault file exceeds maximum size");
+        }
+        out.insert(out.end(), buf, buf + n);
+    }
     std::fclose(f);
     return out;
 }
